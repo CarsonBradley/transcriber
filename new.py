@@ -3,25 +3,24 @@ from deepgram import PrerecordedOptions
 
 key = '850e2b55f87cf82ae7d59111752e7adaf09c5e4e'
 
-class Transcriber:
-    def __init__(self, key: str, lang: str, model: str):
-        self.key = key
-        self.lang = lang
-        self.model = model
-        self.deepgram = DeepgramClient(self.key)
 
-    def format_time(self):
-        """
-        Format the given time in seconds into HH:MM:SS.
-        Rounds to the nearest whole second.
-        """
-        rounded_seconds = int(round(self.seconds))
-        hrs = rounded_seconds // 3600
-        mins = (rounded_seconds % 3600) // 60
-        secs = rounded_seconds % 60
-        return f"{hrs:02d}:{mins:02d}:{secs:02d}"
+def format_time(seconds):
+            """
+            Format the given time in seconds into HH:MM:SS.
+            Rounds to the nearest whole second.
+            """
+            rounded_seconds = int(round(seconds))
+            hrs = rounded_seconds // 3600
+            mins = (rounded_seconds % 3600) // 60
+            secs = rounded_seconds % 60
+            return f"{hrs:02d}:{mins:02d}:{secs:02d}"
 
-    def transcribe_url(self, url):
+
+class DeepgramTranscriber:
+    def __init__(self, key: str):
+        self.client = DeepgramClient(key)
+
+    def transcribe_url(self, url: str, lang: str, model: str):
         """
         Transcription function that sends request to Deepgram 
         for the JSON formatted transcription of the audio file
@@ -32,15 +31,14 @@ class Transcriber:
             source = {"url": url}
 
         try:
-            deepgram = DeepgramClient(self.key)
             options = PrerecordedOptions(
-                model = self.model,
+                model = model,
                 smart_format = True,
-                language= self.lang,
+                language= lang,
                 diarize=True
             )
 
-            response = deepgram.listen.prerecorded.v("1").transcribe_url(source, options, timeout=300)
+            response = self.client.listen.prerecorded.v("1").transcribe_url(source, options, timeout=300)
 
             # Convert response to JSON
             response = response.to_dict()
@@ -49,13 +47,13 @@ class Transcriber:
             print(f"Exception: {e}")
         return response
 
-    def format_transcript(self, response):
+    def format_transcript(self, response: dict):
         """
         Format the response from Deepgram into legible
         text with the standard transcript format
         """
-
-        response = self.transcribe_url()
+        if not response:
+            return "Transcription failed or no response provided."
 
         try:
             # Get the transcript paragraphs
@@ -78,7 +76,7 @@ class Transcriber:
                 paragraph_text = " ".join([s['text'] for s in paragraph['sentences']]).strip()
 
                 # Format the times
-                formatted_start = format_time(self.start_time)
+                formatted_start = format_time(start_time)
                 formatted_end = format_time(end_time)
 
                 # Create formatted paragraph string
@@ -93,4 +91,21 @@ class Transcriber:
             return None
 
 
+# How to use the new, improved class:
+if __name__ == "__main__":
+    API_KEY = '850e2b55f87cf82ae7d59111752e7adaf09c5e4e'
+    URL = "https://storage.googleapis.com/radiotransdata/audio-files/redfm_TESTER_06_28_24_08_28_00%20(1)%20(1).wav"
+
+    # 1. Create the reusable transcriber tool
+    transcriber = DeepgramTranscriber(API_KEY)
+
+    # 2. Use the tool to run a specific job
+    raw_response = transcriber.transcribe_url(URL, lang="multi", model="nova-3")
+
+    # 3. Pass the result of that job to the formatter
+    if raw_response:
+        formatted_transcript = transcriber.format_transcript(raw_response)
+        print(formatted_transcript)
+    else:
+        print("Transcription failed.")
 
