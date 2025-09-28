@@ -1,7 +1,11 @@
 from deepgram import DeepgramClient
 from deepgram import PrerecordedOptions
 
-key = '850e2b55f87cf82ae7d59111752e7adaf09c5e4e'
+import os
+# It's better to set the API key as an environment variable for security reasons
+
+
+key = os.getenv('DEEPGRAM_API_KEY')
 
 
 def format_time(seconds):
